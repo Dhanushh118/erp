@@ -1,37 +1,29 @@
 pipeline {
-  agent {
-    docker {
-      image 'node:lts'    // official Node LTS image
-      args  '-u root:root' // optional: run as root to avoid permission issues when installing
-    }
-  }
+  agent any
 
   stages {
-    stage('Clone') {
+    
+    stage('Checkout') {
       steps {
-        // git is available inside the Jenkins workspace by default; if not, you can still use the git step
         git branch: 'main', url: 'https://github.com/Dhanushh118/erp'
       }
     }
 
-    stage('Install Dependencies') {
+    stage('Install, Test, Build') {
       steps {
-        // use npm install; legacy peer deps flag kept as you had it
-        sh 'npm install --legacy-peer-deps'
+        // Run all npm commands inside official Node Docker image
+        sh '''
+          docker run --rm \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            node:18-alpine sh -c "
+              npm install --legacy-peer-deps &&
+              npm test -- --watchAll=false || true &&
+              npm run build
+            "
+        '''
       }
     }
 
-    stage('Run Tests') {
-      steps {
-        sh 'npm test -- --watchAll=false || true'
-      }
-    }
-
-    stage('Build React App') {
-      steps {
-        sh 'npm run build'
-      }
-    }
   }
 }
-
